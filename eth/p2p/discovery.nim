@@ -255,6 +255,7 @@ proc processClient(transp: DatagramTransport,
     proto.receive(a, buf)
   except:
     debug "Receive failed", err = getCurrentExceptionMsg()
+    raise
 
 proc open*(d: DiscoveryProtocol) =
   let ta = initTAddress(d.address.ip, d.address.udpPort)

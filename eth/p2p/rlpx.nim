@@ -203,6 +203,7 @@ proc requestResolver[MsgType](msg: pointer, future: FutureBase) {.gcsafe.} =
         debug "Exception in requestResolver()",
           exc = getCurrentException().name,
           err = getCurrentExceptionMsg()
+        raise
 
 proc registerMsg(protocol: ProtocolInfo,
                  id: int, name: string,
@@ -1233,9 +1234,8 @@ proc postHelloSteps(peer: Peer, h: devp2p.hello) {.async.} =
 
   messageProcessingLoop.callback = proc(p: pointer) {.gcsafe.} =
     if messageProcessingLoop.failed:
-      error "dispatchMessages failed",
-            err = messageProcessingLoop.error.msg
       asyncCheck peer.disconnect(ClientQuitting)
+      raise messageProcessingLoop.error
 
   # The handshake may involve multiple async steps, so we wait
   # here for all of them to finish.
@@ -1350,9 +1350,11 @@ proc rlpxConnect*(node: EthereumNode, remote: Node): Future[Peer] {.async.} =
   except TransportOsError:
     trace "TransportOsError", err = getCurrentExceptionMsg()
   except:
-    debug "Exception in rlpxConnect", remote,
-          exc = getCurrentException().name,
-          err = getCurrentExceptionMsg()
+    debug "Exception in rlpxConnect",
+          err = getCurrentExceptionMsg(),
+          stackTrace = getCurrentException().getStackTrace()
+    result = nil
+    raise
 
   if not ok:
     if not isNil(result.transport):
@@ -1420,13 +1422,12 @@ proc rlpxAccept*(node: EthereumNode,
     result = nil
     raise e
   except:
-    let e = getCurrentException()
     debug "Exception in rlpxAccept",
           err = getCurrentExceptionMsg(),
           stackTrace = getCurrentException().getStackTrace()
     transport.close()
     result = nil
-    raise e
+    raise
 
 when isMainModule:
 
